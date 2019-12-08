@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--suppress XmlUnboundNsPrefix -->
+<Configuration packages="no.finntech.commons.logging,no.finntech.commons.monitoring.logging">
+    <Appenders>
+        <FINNAppender />
+        <FINNPrometheusAppender/>
+    </Appenders>
+    <Loggers>
+        <!-- Fine-tune loggers here -->
+        <logger name="no.finntech.commons.service.ServiceBootstrap" level="info"/>
+        <logger name="no.finntech.search" level="debug" />
+        <logger name="no.finntech.commons.messaging" level="info" />
+        <logger name="no.finntech.commons.service.ServiceBootstrap" level="info" />
+        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="error" />
+        <logger name="no.finntech.commons.db.ReflectionHelper" level="warn" />
+        <logger name="org.springframework.jdbc.core.JdbcTemplate" level="info" />
+
+        <Root level="info">
+            <AppenderRef ref="FINNPrometheusAppender"/>
+            <AppenderRef ref="FINNAppender"/>
+        </Root>
+    </Loggers>
+</Configuration>
+
+
