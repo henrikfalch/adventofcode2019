@@ -209,29 +209,29 @@ class Day7 {
         }
         return maxOutput
     }
+    class Instructions(
+            var index: Int,
+            var program: List<Int>,
+            var inputSignal: Int,
+            val phaseSetting: Int,
+            var output: Int? = null,
+            var halt: Boolean = false
+    ) {
+        var inputsUsed = 1
+        var suspended = false
 
-}
-
-class Instructions(
-        var index: Int,
-        var program: List<Int>,
-        var inputSignal: Int,
-        val phaseSetting: Int,
-        var output: Int? = null,
-        var halt: Boolean = false
-) {
-    var inputsUsed = 1
-    var suspended = false
-
-    fun nextInput(): Int? {
-        inputsUsed++
-        return when (inputsUsed) {
-            1 -> phaseSetting
-            2 -> inputSignal
-            else -> null
+        fun nextInput(): Int? {
+            inputsUsed++
+            return when (inputsUsed) {
+                1 -> phaseSetting
+                2 -> inputSignal
+                else -> null
+            }
         }
     }
+
 }
+
 
 fun main() {
     println("Excercise2: ${Day7().excercise2()}")

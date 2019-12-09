@@ -1,6 +1,7 @@
 package no.finntech.facade
 
 import java.io.File
+import java.math.BigInteger
 
 
 fun fileLinesAsList(path:String): List<String> {
@@ -13,6 +14,12 @@ fun fileAsIntList(path:String): List<Int> {
     val classLoader: ClassLoader = Day1::class.java.classLoader
     val file = File(classLoader.getResource(path).file)
     return file.readLines().flatMap { it.split(",") }.map { it.toInt() }
+}
+
+fun fileAsBigIntList(path:String): List<BigInteger> {
+    val classLoader: ClassLoader = Day1::class.java.classLoader
+    val file = File(classLoader.getResource(path).file)
+    return file.readLines().flatMap { it.split(",") }.map { it.toBigInteger() }
 }
 
 fun fileAsShortIntList(path:String): List<Int> {
