@@ -28,7 +28,6 @@ class Day9 {
         val instruction = completeInstruction % 100
         val paramMode = listOf((completeInstruction % 1000) / 100, (completeInstruction % 10000) / 1000, completeInstruction / 10000)
 
-        println("instruction: $instruction")
         return when (instruction) {
             1 -> add(instructions, paramMode)
             2 -> multiply(instructions, paramMode)
@@ -108,11 +107,11 @@ class Day9 {
         val copy = program.toMutableList()
         val nextInput = instructions.nextInput()
 
-        val insertINdex = getValueFromMode(program, paramMode[0], index+1, instructions).toInt()
-        copy[insertINdex] = nextInput
+        val insertIndex = getIndexForMode(program, paramMode[0], index+1, instructions)
+        copy[insertIndex] = nextInput
         instructions.index += 2
         instructions.program = copy
-        println("Input $nextInput added to index $insertINdex, instruction: ${program[index]}, ${program[index+1]}")
+        println("Input $nextInput added to index $insertIndex, instruction: ${program[index]}, ${program[index+1]}")
 
         return instructions
     }
@@ -133,7 +132,7 @@ class Day9 {
         val val1 = getValueFromMode(program, paramMode[0], index + 1, instructions)
         val val2 = getValueFromMode(program, paramMode[1], index + 2, instructions)
         val copy = program.toMutableList()
-        val insertIndex = program[index + 3].toInt()
+        val insertIndex = getIndexForMode(program, paramMode[2], index+3, instructions)
         if (insertIndex > copy.size - 1) {
             val numToAdd = copy.size - insertIndex
             //repeat(numToAdd) { DOES NOT WORK?? WTF??
@@ -153,6 +152,15 @@ class Day9 {
             0 -> program.getValue(index)
             1 -> program[index]
             2 -> (program.getValue(index, instructions.relativeBase))
+            else -> throw IllegalArgumentException("Param not supported: $param")
+        }
+    }
+
+    private fun getIndexForMode(program: List<BigInteger>, param: Int, index: Int, instructions: Instructions): Int {
+        return when (param) {
+            0 -> program[index].toInt()
+            1 -> index
+            2 -> program[index].toInt() + instructions.relativeBase
             else -> throw IllegalArgumentException("Param not supported: $param")
         }
     }
