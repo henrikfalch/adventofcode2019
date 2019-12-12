@@ -5,186 +5,167 @@ import java.math.BigInteger
 import java.math.BigInteger.ONE
 import java.math.BigInteger.ZERO
 
-class IntComputer(private var program: List<BigInteger>, private var channels: IntComputerChannels) {
-    suspend fun start() {
-        var state = State(0, program, channels.inputChannel, channels.outputChannel)
+class IntComputer(
+        inputProgram: List<BigInteger>,
+        private val channels: IntComputerChannels,
+        private val debugMode: Boolean = false
+) {
+    private val state = State(0, inputProgram)
 
+    suspend fun start() {
         while (!state.halt) {
-            state = calcIteration(state)
+            calcIteration()
         }
-        channels.closeChannel.send(true)
+        channels.exit.send(true)
     }
 
-
-    private suspend fun calcIteration(state: State): State {
-        val program = state.program
-        val index = state.index
-        val completeInstruction = program[index].toInt()
+    private suspend fun calcIteration() {
+        val completeInstruction = state.program[state.index].toInt()
         val instruction = completeInstruction % 100
         val paramMode = listOf((completeInstruction % 1000) / 100, (completeInstruction % 10000) / 1000, completeInstruction / 10000)
 
-        return when (instruction) {
-            1 -> add(state, paramMode)
-            2 -> multiply(state, paramMode)
-            3 -> input(state, paramMode)
-            4 -> output(state, paramMode)
-            5 -> jumpIfTrue(state, paramMode)
-            6 -> jumpIfFalse(state, paramMode)
-            7 -> lessThan(state, paramMode)
-            8 -> equals(state, paramMode)
-            9 -> setRelativeBase(state, paramMode)
-            99 -> halt(state)
+        when (instruction) {
+            1 -> add(paramMode)
+            2 -> multiply(paramMode)
+            3 -> input(paramMode)
+            4 -> output(paramMode)
+            5 -> jumpIfTrue(paramMode)
+            6 -> jumpIfFalse(paramMode)
+            7 -> lessThan(paramMode)
+            8 -> equals(paramMode)
+            9 -> setRelativeBase(paramMode)
+            99 -> halt()
             else -> throw IllegalStateException("Illegal instruction: $instruction")
         }
     }
 
-    private fun setRelativeBase(state: State, paramMode: List<Int>): State {
-        val program = state.program
-        val index = state.index
-        val val1 = indexForRead(program, paramMode[0], index + 1, state)
+    private fun setRelativeBase(paramMode: List<Int>) {
+        val val1 = indexForRead(paramMode[0], 1)
 
         state.index += 2
         state.relativeBase += val1.toInt()
 
-        println("Setting relative base to ${state.relativeBase}, with value: $val1, instruction: ${program[index]}, ${program[index+1]}")
-        return state
+        if (debugMode) {
+            println("Setting relative base to ${state.relativeBase}, with value: $val1, instruction: ${state.program[state.index]}, ${state.program[state.index + 1]}")
+        }
     }
 
-    private fun equals(state: State, paramMode: List<Int>): State {
+    private fun equals(paramMode: List<Int>) {
         val function: (BigInteger, BigInteger) -> BigInteger = { v1, v2 -> if (v1 == v2) ONE else ZERO }
-        return executeFunction(state, function, paramMode)
+        return executeFunction(function, paramMode)
     }
 
-    private fun lessThan(state: State, paramMode: List<Int>): State {
+    private fun lessThan(paramMode: List<Int>) {
         val function: (BigInteger, BigInteger) -> BigInteger = { v1, v2 -> if (v1 < v2) ONE else ZERO }
-        return executeFunction(state, function, paramMode)
+        return executeFunction(function, paramMode)
     }
 
-    private fun jumpIfFalse(state: State, paramMode: List<Int>): State {
-        val program = state.program
-        val index = state.index
-        val val1 = indexForRead(program, paramMode[0], index + 1, state)
+    private fun jumpIfFalse(paramMode: List<Int>) {
+        val val1 = indexForRead(paramMode[0], 1)
 
         if (val1 != ZERO) {
             state.index += 3
         } else {
-            state.index = indexForRead(program, paramMode[1], index + 2, state).toInt()
+            state.index = indexForRead(paramMode[1], 2).toInt()
         }
-        return state
     }
 
-    private fun jumpIfTrue(state: State, paramMode: List<Int>): State {
-        val program = state.program
-        val index = state.index
-        val val1 = indexForRead(program, paramMode[0], index + 1, state)
+    private fun jumpIfTrue(paramMode: List<Int>) {
+        val val1 = indexForRead(paramMode[0], 1)
 
         if (val1 == ZERO) {
             state.index += 3
         } else {
-            state.index = indexForRead(program, paramMode[1], index + 2, state).toInt()
+            state.index = indexForRead(paramMode[1], 2).toInt()
         }
-        return state
     }
 
-    private suspend fun output(state: State, paramMode: List<Int>): State {
-        val program = state.program
-        val index = state.index
-        val output = indexForRead(program, paramMode[0], index + 1, state)
-        println("Output: $output")
+    private suspend fun output(paramMode: List<Int>) {
+        val output = indexForRead(paramMode[0], 1)
+
+        if (debugMode) {
+            println("Output: $output")
+        }
+
         state.index += 2
-        state.output.send(output)
-        return state
+        channels.output.send(output)
     }
 
-    private suspend fun input(state: State, paramMode: List<Int>): State {
-        val program = state.program
-        val index = state.index
-        val copy = program.toMutableList()
-        val nextInput = state.input.receive()
+    private suspend fun input(paramMode: List<Int>) {
+        val nextInput = channels.input.receive()
 
-        val insertIndex = indexForWrite(program, paramMode[0], index+1, state)
-        copy[insertIndex] = nextInput
+        val insertIndex = indexForWrite(paramMode[0], 1)
+        writeValueToProgram(nextInput, insertIndex)
         state.index += 2
-        state.program = copy
-        println("Input $nextInput added to index $insertIndex, instruction: ${program[index]}, ${program[index+1]}")
-
-        return state
+        if (debugMode) {
+            println("Input $nextInput added to index $insertIndex, instruction: ${state.program[state.index]}, ${state.program[state.index + 1]}")
+        }
     }
 
-    private fun add(state: State, paramMode: List<Int>): State {
+    private fun add(paramMode: List<Int>) {
         val function: (BigInteger, BigInteger) -> BigInteger = { v1, v2 -> v1 + v2 }
-        return executeFunction(state, function, paramMode)
+        return executeFunction(function, paramMode)
     }
 
-    private fun multiply(state: State, paramMode: List<Int>): State {
+    private fun multiply(paramMode: List<Int>) {
         val function: (BigInteger, BigInteger) -> BigInteger = { v1, v2 -> v1 * v2 }
-        return executeFunction(state, function, paramMode)
+        return executeFunction(function, paramMode)
     }
 
-    private fun executeFunction(state: State, function: (BigInteger, BigInteger) -> BigInteger, paramMode: List<Int>): State {
-        val program = state.program
-        val index = state.index
-        val val1 = indexForRead(program, paramMode[0], index + 1, state)
-        val val2 = indexForRead(program, paramMode[1], index + 2, state)
-        val copy = program.toMutableList()
-        val insertIndex = indexForWrite(program, paramMode[2], index+3, state)
+    private fun executeFunction(function: (BigInteger, BigInteger) -> BigInteger, paramMode: List<Int>) {
+        val val1 = indexForRead(paramMode[0], 1)
+        val val2 = indexForRead(paramMode[1], 2)
+        val value = function.invoke(val1, val2)
+        val insertIndex = indexForWrite(paramMode[2], 3)
 
-        if (insertIndex > copy.size - 1) {
-            val numToAdd = insertIndex - copy.size + 1
+        writeValueToProgram(value, insertIndex)
+        state.index += 4
+    }
+
+    private fun writeValueToProgram(value: BigInteger, insertIndex: Int) {
+        val program = state.program.toMutableList()
+        if (insertIndex > program.size - 1) {
+            val numToAdd = insertIndex - program.size + 1
             repeat(numToAdd) {
-                copy.add(ZERO)
+                program.add(ZERO)
             }
         }
-        copy[insertIndex] = function.invoke(val1, val2)
-
-        state.program = copy
-        state.index += 4
-        return state
+        program[insertIndex] = value
+        state.program = program
     }
 
-    private fun indexForRead(program: List<BigInteger>, param: Int, index: Int, state: State): BigInteger {
-        return when (param) {
-            0 -> program.getValue(index)
-            1 -> program[index]
-            2 -> (program.getValue(index, state.relativeBase))
-            else -> throw IllegalArgumentException("Param not supported: $param")
-        }
-    }
-
-    private fun indexForWrite(program: List<BigInteger>, param: Int, index: Int, state: State): Int {
-        return when (param) {
-            0 -> program[index].toInt()
-            1 -> index
-            2 -> program[index].toInt() + state.relativeBase
-            else -> throw IllegalArgumentException("Param not supported: $param")
-        }
-    }
-
-    private fun List<BigInteger>.getValue(index: Int, addition: Int = 0): BigInteger {
+    private fun indexForRead(param: Int, indexOffset: Int): BigInteger {
         return try {
-            this[this[index].toInt() + addition]
-        } catch (e:IndexOutOfBoundsException) {
+            state.program[indexForWrite(param, indexOffset)]
+        } catch (e: IndexOutOfBoundsException) {
             ZERO
         }
     }
 
-    private fun halt(state: State): State {
+    private fun indexForWrite(param: Int, indexOffset: Int): Int {
+        val index = state.index + indexOffset
+        return when (param) {
+            0 -> state.program[index].toInt()
+            1 -> index
+            2 -> state.program[index].toInt() + state.relativeBase
+            else -> throw IllegalArgumentException("Param not supported: $param")
+        }
+    }
+
+    private fun halt() {
         state.halt = true
-        return state
     }
 
     private class State(
             var index: Int,
             var program: List<BigInteger>,
-            var input: Channel<BigInteger>,
-            var output: Channel<BigInteger>,
             var halt: Boolean = false,
             var relativeBase: Int = 0
     )
 }
 
 class IntComputerChannels() {
-    val outputChannel = Channel<BigInteger>()
-    val inputChannel = Channel<BigInteger>(Channel.UNLIMITED)
-    val closeChannel = Channel<Boolean>()
+    val output = Channel<BigInteger>()
+    val input = Channel<BigInteger>(Channel.UNLIMITED)
+    val exit = Channel<Boolean>()
 }

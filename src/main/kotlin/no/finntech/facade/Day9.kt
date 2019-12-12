@@ -7,12 +7,12 @@ import java.math.BigInteger
 
 class Day9 {
 
-    fun excercise1(): String {
+    fun excercise1(bigInteger: BigInteger): String {
         val input = fileAsBigIntList("day9.txt")
-        return startIntComputer(input).joinToString(", ")
+        return startIntComputer(input, bigInteger).joinToString(", ")
     }
 
-    fun startIntComputer(input: List<BigInteger>): List<BigInteger> {
+    fun startIntComputer(input: List<BigInteger>, startInput: BigInteger): List<BigInteger> {
         val result = mutableListOf<BigInteger>()
         val channels = IntComputerChannels()
 
@@ -22,14 +22,13 @@ class Day9 {
             }
             launch {
                 var isRunning = true
-                channels.inputChannel.send(BigInteger.ONE)
+                channels.input.send(startInput)
                 while (isRunning) {
                     select<Unit> {
-                        channels.closeChannel.onReceive {
-                            println("STOP")
+                        channels.exit.onReceive {
                             isRunning = false
                         }
-                        channels.outputChannel.onReceive { output ->
+                        channels.output.onReceive { output ->
                             result.add(output)
                         }
                     }
@@ -42,5 +41,6 @@ class Day9 {
 }
 
 fun main() {
-    println("Excercise1: ${Day9().excercise1()}")
+    println("Excercise1: ${Day9().excercise1(BigInteger.ONE)}") //2752191671
+    println("Excercise2: ${Day9().excercise1(BigInteger.TWO)}") //87571
 }
