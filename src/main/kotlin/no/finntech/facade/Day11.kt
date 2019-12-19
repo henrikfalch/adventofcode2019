@@ -10,11 +10,21 @@ class Day11 {
 
     fun excercise1() {
         val input = fileAsBigIntList("day11.txt")
-        val result = startIntComputer(input)
+        val result = startIntComputer(input, BLACK)
         println("Exercise 1 answer: ${result.size}")
     }
 
-    private fun startIntComputer(input: List<BigInteger>): Map<Point, BigInteger> {
+    fun excercise2() {
+        val input = fileAsBigIntList("day11.txt")
+        val result = startIntComputer(input, WHITE)
+
+        val outputRanges = result.outputRanges()
+        outputRanges.first.forEach { y ->
+            println(outputRanges.second.map { x -> if (result[Point(x,y)] == WHITE) "#" else " " }.joinToString(""))
+        }
+    }
+
+    private fun startIntComputer(input: List<BigInteger>, startInput: BigInteger): Map<Point, BigInteger> {
         var result = mapOf<Point, BigInteger>()
         var currentPosition = Point(0,0)
         var currentDirection = UP
@@ -26,7 +36,7 @@ class Day11 {
             }
             launch {
                 var isRunning = true
-                channels.input.send(BLACK)
+                channels.input.send(startInput)
                 while (isRunning) {
                     select<Unit> {
                         channels.exit.onReceive {
@@ -80,9 +90,18 @@ class Day11 {
         }
     }
 
+    fun Map<Point, BigInteger>.outputRanges(): Pair<IntProgression, IntRange> {
+        val xMin = this.keys.minBy { it.x }!!.x
+        val xMax = this.keys.maxBy { it.x }!!.x
+        val yMin = this.keys.minBy { it.y }!!.y
+        val yMax = this.keys.maxBy { it.y }!!.y
+
+        return yMax downTo yMin to xMin..xMax
+    }
+
 }
 
 fun main() {
-    Day11().excercise1()
-    //println("Excercise2: ${Day9().excercise1(BigInteger.TWO)}")
+    //Day11().excercise1()
+    Day11().excercise2()
 }
