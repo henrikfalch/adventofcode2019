@@ -17,7 +17,7 @@
     <description>facade messages duplicated in db</description>
 
     <properties>
-        <kotlin.version>1.3.31</kotlin.version>
+        <kotlin.version>1.6.0</kotlin.version>
         <version.monolib>26.0</version.monolib>
         <simpleclient.version>0.6.0</simpleclient.version>
         <version.search-kafka-client>6.0.2</version.search-kafka-client>
